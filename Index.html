@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Queedle Tap</title>
+  <script src="https://telegram.org"></script>
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: radial-gradient(circle at top, #1f2436 0%, #0d1017 100%); color: #fff; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 16px; }
+    .header { text-align: center; margin-top: 8px; }
+    .subtitle { font-size: 13px; color: #8e96aa; text-transform: uppercase; letter-spacing: 1px; }
+    .balance-box { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 6px; }
+    .balance-icon { font-size: 32px; }
+    #balance { font-size: 42px; font-weight: 800; }
+    .stats-row { display: flex; justify-content: center; gap: 12px; margin-top: 8px; font-size: 13px; color: #b0b8cc; }
+    .stat-badge { background: rgba(255, 255, 255, 0.07); padding: 4px 12px; border-radius: 20px; }
+    .tap-area { flex: 1; display: flex; align-items: center; justify-content: center; }
+    #coin { width: 230px; height: 230px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ffd86f, #f59e0b 65%, #b45309 100%); box-shadow: 0 0 45px rgba(245, 158, 11, 0.35), inset 0 4px 12px rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.08s ease; border: 8px solid #fbbf24; touch-action: manipulation; }
+    #coin:active, #coin.pressed { transform: scale(0.94); }
+    .coin-inner { width: 175px; height: 175px; border-radius: 50%; border: 3px dashed rgba(146, 64, 14, 0.45); display: flex; align-items: center; justify-content: center; font-size: 76px; font-weight: 900; color: #78350f; pointer-events: none; }
+    .floating-num { position: fixed; font-size: 26px; font-weight: 800; color: #fde047; pointer-events: none; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); animation: floatUp 0.8s ease-out forwards; z-index: 100; }
+    @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-95px) scale(1.2); } }
+    .energy-section { margin-bottom: 14px; }
+    .energy-text { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #e2e8f0; }
+    .energy-bar-bg { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; }
+    #energy-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #f59e0b, #fde047); border-radius: 10px; transition: width 0.15s ease; }
+    .shop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .upgrade-btn { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 10px 6px; color: #fff; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; }
+    .upgrade-btn:active { transform: scale(0.96); }
+    .upgrade-btn.disabled { opacity: 0.45; pointer-events: none; }
+    .upg-icon { font-size: 20px; margin-bottom: 4px; }
+    .upg-title { font-size: 12px; font-weight: 700; }
+    .upg-lvl { font-size: 10px; color: #94a3b8; margin: 2px 0; }
+    .upg-cost { font-size: 12px; font-weight: 700; color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="subtitle">Queedle Coin</div>
+    <div class="balance-box"><span class="balance-icon">🪙</span><span id="balance">0</span></div>
+    <div class="stats-row">
+      <div class="stat-badge">👆 +<span id="tap-power-lbl">1</span> за тап</div>
+      <div class="stat-badge">🤖 +<span id="auto-income-lbl">0</span> / сек</div>
+    </div>
+  </div>
+  <div class="tap-area"><div id="coin"><div class="coin-inner">Q</div></div></div>
+  <div>
+    <div class="energy-section">
+      <div class="energy-text"><span>⚡ Энергия</span><span><span id="energy">500</span> / <span id="max-energy">500</span></span></div>
+      <div class="energy-bar-bg"><div id="energy-fill"></div></div>
+    </div>
+    <div class="shop">
+      <button class="upgrade-btn" id="btn-tap" onclick="buyUpgrade('tap')"><span class="upg-icon">💪</span><span class="upg-title">Мультитап</span><span class="upg-lvl" id="lvl-tap">Ур. 1</span><span class="upg-cost" id="cost-tap">50 🪙</span></button>
+      <button class="upgrade-btn" id="btn-auto" onclick="buyUpgrade('auto')"><span class="upg-icon">🤖</span><span class="upg-title">Автоклик</span><span class="upg-lvl" id="lvl-auto">Ур. 0</span><span class="upg-cost" id="cost-auto">100 🪙</span></button>
+      <button class="upgrade-btn" id="btn-energy" onclick="buyUpgrade('energy')"><span class="upg-icon">🔋</span><span class="upg-title">Запас ⚡</span><span class="upg-lvl" id="lvl-energy">Ур. 1</span><span class="upg-cost" id="cost-energy">80 🪙</span></button>
+    </div>
+  </div>
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) { try { tg.ready(); tg.expand(); tg.setHeaderColor('#1f2436'); } catch(e) {} }
+
+    let savedData = null;
+    try { savedData = JSON.parse(localStorage.getItem('queedle_tap_save')); } catch(e) {}
+
+    let state = savedData || {
+      balance: 0, tapPower: 1, tapLvl: 1, tapCost: 50,
+      autoIncome: 0, autoLvl: 0, autoCost: 100,
+      energy: 500, maxEnergy: 500, energyLvl: 1, energyCost: 80
+    };
+
+    const coinEl = document.getElementById('coin');
+    function saveState() { try { localStorage.setItem('queedle_tap_save', JSON.stringify(state)); } catch(e) {} }
+
+    function updateUI() {
+      document.getElementById('balance').textContent = Math.floor(state.balance).toLocaleString('ru-RU');
+      document.getElementById('tap-power-lbl').textContent = state.tapPower;
+      document.getElementById('auto-income-lbl').textContent = state.autoIncome;
+      document.getElementById('energy').textContent = Math.floor(state.energy);
+      document.getElementById('max-energy').textContent = state.maxEnergy;
+      document.getElementById('energy-fill').style.width = (state.energy / state.maxEnergy * 100) + '%';
+      document.getElementById('lvl-tap').textContent = 'Ур. ' + state.tapLvl;
+      document.getElementById('cost-tap').textContent = state.tapCost + ' 🪙';
+      document.getElementById('lvl-auto').textContent = 'Ур. ' + state.autoLvl;
+      document.getElementById('cost-auto').textContent = state.autoCost + ' 🪙';
+      document.getElementById('lvl-energy').textContent = 'Ур. ' + state.energyLvl;
+      document.getElementById('cost-energy').textContent = state.energyCost + ' 🪙';
+      document.getElementById('btn-tap').classList.toggle('disabled', state.balance < state.tapCost);
+      document.getElementById('btn-auto').classList.toggle('disabled', state.balance < state.autoCost);
+      document.getElementById('btn-energy').classList.toggle('disabled', state.balance < state.energyCost);
+    }
+
+    function spawnFloatingText(x, y, text) {
+      const el = document.createElement('div');
+      el.className = 'floating-num';
+      el.textContent = text;
+      el.style.left = (x - 15) + 'px';
+      el.style.top = (y - 25) + 'px';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 800);
+    }
+
+    function handleTap(x, y) {
+      if (state.energy < 1) return;
+      state.balance += state.tapPower;
+      state.energy = Math.max(0, state.energy - 1);
+      try { if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); } catch(e) {}
+      spawnFloatingText(x, y, '+' + state.tapPower);
+      updateUI(); saveState();
+    }
+
+    coinEl.addEventListener('pointerdown', (e) => {
+      coinEl.classList.add('pressed');
+      handleTap(e.clientX, e.clientY);
+      setTimeout(() => coinEl.classList.remove('pressed'), 80);
+    });
+
+    function buyUpgrade(type) {
+      if (type === 'tap' && state.balance >= state.tapCost) {
+        state.balance -= state.tapCost; state.tapLvl++; state.tapPower += 1; state.tapCost = Math.floor(state.tapCost * 1.7);
+      } else if (type === 'auto' && state.balance >= state.autoCost) {
+        state.balance -= state.autoCost; state.autoLvl++; state.autoIncome += 2; state.autoCost = Math.floor(state.autoCost * 1.8);
+      } else if (type === 'energy' && state.balance >= state.energyCost) {
+        state.balance -= state.energyCost; state.energyLvl++; state.maxEnergy += 250; state.energy = state.maxEnergy; state.energyCost = Math.floor(state.energyCost * 1.6);
+      }
+      try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success'); } catch(e) {}
+      updateUI(); saveState();
+    }
+
+    setInterval(() => {
+      if (state.autoIncome > 0) state.balance += state.autoIncome;
+      if (state.energy < state.maxEnergy) state.energy = Math.min(state.maxEnergy, state.energy + 3);
+      updateUI(); saveState();
+    }, 1000);
+
+    updateUI();
+  </script>
+</body>
+</html>
